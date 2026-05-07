@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Any
-from pydantic import BaseModel, GetCoreSchemaHandler
+from pydantic import GetCoreSchemaHandler
 from pydantic_core import core_schema
 
 ALLOWED_DTYPES = {
@@ -10,23 +10,30 @@ ALLOWED_DTYPES = {
 }
 
 
-def NDArray(dtype: type[np.generic], shape: tuple[int, ...] | None = None):
+def NDArray(dtype: type[np.generic], shape: tuple[int, ...] | None = None) -> type:
+    """
+    Create a Pydantic-compatible NumPy ndarray type with
+    dtype and optional shape validation. Doesn't support
+    symbolic or wildcard dimensions.
+    """
     if dtype not in ALLOWED_DTYPES:
         raise ValueError(f"Unsupported dtype: {dtype}.")
 
-    class _NDArray:
+    class PydanticNDArray:
         @classmethod
         def __get_pydantic_core_schema__(
             cls, source_type, handler: GetCoreSchemaHandler
         ):
             def validate(value: Any) -> np.ndarray:
                 arr = np.array(value)
+                expected_dtype = arr.dtype
+                expected_shape = arr.shape
 
-                if arr.dtype != np.dtype(dtype):
-                    raise TypeError(f"Expected dtype {dtype}, got {arr.dtype}")
+                if expected_dtype != np.dtype(dtype):
+                    raise TypeError(f"Expected dtype {dtype}, got {expected_dtype}")
 
-                if shape is not None and arr.shape != shape:
-                    raise TypeError(f"Expected shape {shape}, got {arr.shape}")
+                if shape is not None and expected_shape != shape:
+                    raise TypeError(f"Expected shape {shape}, got {expected_shape}")
 
                 return arr
 
@@ -40,4 +47,4 @@ def NDArray(dtype: type[np.generic], shape: tuple[int, ...] | None = None):
                 ),
             )
 
-    return _NDArray
+    return PydanticNDArray
