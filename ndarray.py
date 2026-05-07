@@ -30,6 +30,14 @@ def NDArray(dtype: type[np.generic], shape: tuple[int, ...] | None = None):
 
                 return arr
 
-            return core_schema.no_info_plain_validator_function(validate)
+            def serialize(value: np.ndarray) -> Any:
+                return value.tolist()
+
+            return core_schema.no_info_plain_validator_function(
+                validate,
+                serialization=core_schema.plain_serializer_function_ser_schema(
+                    serialize
+                ),
+            )
 
     return _NDArray
