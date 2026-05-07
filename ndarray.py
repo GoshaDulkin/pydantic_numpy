@@ -33,15 +33,3 @@ def NDArray(dtype: type[np.generic], shape: tuple[int, ...] | None = None):
             return core_schema.no_info_plain_validator_function(validate)
 
     return _NDArray
-
-
-FloatMatrix = NDArray(np.float64, (2, 2))
-
-
-class Model(BaseModel):
-    x: FloatMatrix
-
-
-m = Model(x=[[1.0, 2.0], [3.0, 4.0]])
-print(m.x)
-print(type(m.x))
