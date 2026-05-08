@@ -34,7 +34,7 @@ class TestNDArray:
         class ModelLocal(BaseModel):
             x: FloatMatrix
 
-        with pytest.raises(TypeError, match="Expected shape"):
+        with pytest.raises(ValueError, match="Expected shape"):
             ModelLocal(x=[[1.0, 2.0]])
 
     def test_invalid_dtype(self):
@@ -43,7 +43,7 @@ class TestNDArray:
         class ModelLocal(BaseModel):
             x: FloatMatrix
 
-        with pytest.raises(TypeError, match="Expected dtype"):
+        with pytest.raises(ValueError, match="Expected dtype"):
             ModelLocal(x=[[1, 2], [3, 4]])
 
     def test_model_dump(self):

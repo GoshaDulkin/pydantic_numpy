@@ -26,14 +26,14 @@ def NDArray(dtype: type[np.generic], shape: tuple[int, ...] | None = None) -> ty
         ):
             def validate(value: Any) -> np.ndarray:
                 arr = np.array(value)
-                expected_dtype = arr.dtype
-                expected_shape = arr.shape
+                actual_dtype = arr.dtype
+                actual_shape = arr.shape
 
-                if expected_dtype != np.dtype(dtype):
-                    raise TypeError(f"Expected dtype {dtype}, got {expected_dtype}")
+                if actual_dtype != np.dtype(dtype):
+                    raise ValueError(f"Expected dtype {dtype}, got {actual_dtype}")
 
-                if shape is not None and expected_shape != shape:
-                    raise TypeError(f"Expected shape {shape}, got {expected_shape}")
+                if shape is not None and actual_shape != shape:
+                    raise ValueError(f"Expected shape {shape}, got {actual_shape}")
 
                 return arr
 
