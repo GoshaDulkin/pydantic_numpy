@@ -13,31 +13,64 @@ ALLOWED_DTYPES = {
 def NDArray(dtype: type[np.generic], shape: tuple[int, ...] | None = None) -> type:
     """
     Create a Pydantic-compatible NumPy ndarray type with
-    dtype and optional shape validation. Doesn't support
-    symbolic or wildcard dimensions.
+    dtype and optional shape validation.
+
+    Supports exact shape matching only; symbolic and wildcard
+    dimensions are intentionally not implemented.
     """
     if dtype not in ALLOWED_DTYPES:
         raise ValueError(f"Unsupported dtype: {dtype}.")
 
+    expected_dtype = np.dtype(dtype)
+
+    def deserialize_complex(value: dict[str, Any]) -> np.ndarray:
+        """
+        Reconstruct a complex ndarray from a JSON-compatible
+        {"real": ..., "imag": ...} representation.
+        """
+        try:
+            real = np.asarray(value["real"])
+            imag = np.asarray(value["imag"])
+        except (KeyError, TypeError) as e:
+            raise ValueError(
+                "Complex array must be provided as " "{'real': ..., 'imag': ...}"
+            ) from e
+
+        if real.shape != imag.shape:
+            raise ValueError("Real and imaginary parts must have matching shapes.")
+
+        return real + 1j * imag
+
     class PydanticNDArray:
         @classmethod
         def __get_pydantic_core_schema__(
-            cls, source_type, handler: GetCoreSchemaHandler
+            cls,
+            source_type,
+            handler: GetCoreSchemaHandler,
         ):
             def validate(value: Any) -> np.ndarray:
-                arr = np.array(value)
-                actual_dtype = arr.dtype
-                actual_shape = arr.shape
+                if np.issubdtype(dtype, np.complexfloating) and isinstance(value, dict):
+                    value = deserialize_complex(value)
 
-                if actual_dtype != np.dtype(dtype):
-                    raise ValueError(f"Expected dtype {dtype}, got {actual_dtype}")
+                arr = np.asarray(value)
 
-                if shape is not None and actual_shape != shape:
-                    raise ValueError(f"Expected shape {shape}, got {actual_shape}")
+                if arr.dtype != expected_dtype:
+                    raise ValueError(
+                        f"Expected dtype {expected_dtype}, got {arr.dtype}"
+                    )
+
+                if shape is not None and arr.shape != shape:
+                    raise ValueError(f"Expected shape {shape}, got {arr.shape}")
 
                 return arr
 
             def serialize(value: np.ndarray) -> Any:
+                if np.issubdtype(value.dtype, np.complexfloating):
+                    return {
+                        "real": np.real(value).tolist(),
+                        "imag": np.imag(value).tolist(),
+                    }
+
                 return value.tolist()
 
             return core_schema.no_info_plain_validator_function(
