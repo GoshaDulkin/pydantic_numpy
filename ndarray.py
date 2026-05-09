@@ -10,18 +10,52 @@ ALLOWED_DTYPES = {
 }
 
 
-def NDArray(dtype: type[np.generic], shape: tuple[int, ...] | None = None) -> type:
+def NDArray(
+    dtype: type[np.generic], shape: tuple[int | None, ...] | None = None
+) -> type:
     """
     Create a Pydantic-compatible NumPy ndarray type with
     dtype and optional shape validation.
 
-    Supports exact shape matching only; symbolic and wildcard
-    dimensions are intentionally not implemented.
+    Supports:
+    - exact shape matching
+    - wildcard dimensions using 'None'
+
+    Symbolic dimensions are intentionally not implemented.
     """
     if dtype not in ALLOWED_DTYPES:
         raise ValueError(f"Unsupported dtype: {dtype}.")
 
     expected_dtype = np.dtype(dtype)
+
+    def validate_shape(actual_shape: tuple[int, ...]) -> None:
+        """
+        Validate an ndarray shape against the expected shape.
+
+        Rules:
+        - If shape is None: no validation is performed
+        - If shape contains None: that dimension is a wildcard
+          (matches any size)
+        - Otherwise dimensions must match exactly
+
+        Example:
+            expected_shape = (None, 3)
+            valid shapes: (10, 3), (1, 3)
+            invalid shapes: (3, 1), (10, 2)
+        """
+        if shape is None:
+            return
+
+        if len(actual_shape) != len(shape):
+            raise ValueError(
+                f"Rank mismatch: expected {len(shape)} dimensions, got {len(actual_shape)} shape {actual_shape}"
+            )
+
+        for i, (actual_dim, expected_dim) in enumerate(zip(actual_shape, shape)):
+            if expected_dim is not None and actual_dim != expected_dim:
+                raise ValueError(
+                    f"Shape mismatch at dim {i}: expected {expected_dim}, got {actual_dim}"
+                )
 
     def deserialize_complex(value: dict[str, Any]) -> np.ndarray:
         """
@@ -33,7 +67,7 @@ def NDArray(dtype: type[np.generic], shape: tuple[int, ...] | None = None) -> ty
             imag = np.asarray(value["imag"])
         except (KeyError, TypeError) as e:
             raise ValueError(
-                "Complex array must be provided as " "{'real': ..., 'imag': ...}"
+                "Complex array must be provided as {'real': ..., 'imag': ...}"
             ) from e
 
         if real.shape != imag.shape:
@@ -59,8 +93,7 @@ def NDArray(dtype: type[np.generic], shape: tuple[int, ...] | None = None) -> ty
                         f"Expected dtype {expected_dtype}, got {arr.dtype}"
                     )
 
-                if shape is not None and arr.shape != shape:
-                    raise ValueError(f"Expected shape {shape}, got {arr.shape}")
+                validate_shape(arr.shape)
 
                 return arr
 

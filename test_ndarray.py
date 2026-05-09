@@ -43,8 +43,20 @@ class TestNDArray:
         class ModelLocal(BaseModel):
             x: FloatMatrix
 
-        with pytest.raises(ValueError, match="Expected shape"):
+        with pytest.raises(ValueError, match="Shape mismatch"):
             ModelLocal(x=[[1.0, 2.0]])
+
+    def test_invalid_rank(self):
+        """Reject arrays with incorrect number of dimensions."""
+
+        FloatMatrixWildcard = NDArray(np.float64, (None, 3))
+
+        class ModelLocal(BaseModel):
+            x: FloatMatrixWildcard
+
+        # 1D instead of 2D
+        with pytest.raises(ValueError, match="Rank mismatch"):
+            ModelLocal(x=[1.0, 2.0, 3.0])
 
     def test_invalid_dtype(self):
         """Raise an error when the provided array dtype is incorrect."""
@@ -103,23 +115,19 @@ class TestNDArray:
         assert m.x.shape == (3, 1)
         assert m.x.dtype == np.float64
 
-    # ------------------------------------------------------------------
-    # Supported dtypes
-    # ------------------------------------------------------------------
+    def test_wildcard_shape_valid(self):
+        """Allow arbitrary size in wildcard dimensions (None)."""
 
-    def test_int64_array(self):
-        """Validate support for int64 ndarray types."""
-
-        IntVector = NDArray(np.int64, (3,))
+        FloatMatrixWildcard = NDArray(np.float64, (None, 3))
 
         class ModelLocal(BaseModel):
-            x: IntVector
+            x: FloatMatrixWildcard
 
-        m = ModelLocal(x=[1, 2, 3])
+        m = ModelLocal(x=[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
 
         assert isinstance(m.x, np.ndarray)
-        assert m.x.shape == (3,)
-        assert m.x.dtype == np.int64
+        assert m.x.shape == (2, 3)
+        assert m.x.dtype == np.float64
 
     # ------------------------------------------------------------------
     # Serialization
