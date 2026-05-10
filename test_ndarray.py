@@ -38,7 +38,7 @@ class TestNDArray:
         assert m.x.dtype == np.float64
 
     def test_invalid_shape(self):
-        """Raise an error when the provided array shape is incorrect."""
+        """Reject incorrect array shapes."""
 
         class ModelLocal(BaseModel):
             x: FloatMatrix
@@ -163,7 +163,7 @@ class TestNDArray:
         assert reconstructed.x.shape == (2, 2)
         assert reconstructed.x.dtype == np.float64
 
-        assert np.array_equal(original.x, reconstructed.x)
+        np.testing.assert_array_equal(original.x, reconstructed.x)
 
     # ------------------------------------------------------------------
     # Complex serialization
@@ -205,4 +205,4 @@ class TestNDArray:
         assert isinstance(reconstructed.x, np.ndarray)
         assert reconstructed.x.dtype == np.complex128
 
-        assert np.array_equal(original.x, reconstructed.x)
+        np.testing.assert_array_equal(original.x, reconstructed.x)

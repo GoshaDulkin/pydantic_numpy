@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Any
-from pydantic import GetCoreSchemaHandler
+from pydantic import GetCoreSchemaHandler, ValidationInfo
 from pydantic_core import core_schema
 
 ALLOWED_DTYPES = {
@@ -11,7 +11,7 @@ ALLOWED_DTYPES = {
 
 
 def NDArray(
-    dtype: type[np.generic], shape: tuple[int | None, ...] | None = None
+    dtype: type[np.number], shape: tuple[int | None, ...] | None = None
 ) -> type:
     """
     Create a Pydantic-compatible NumPy ndarray type with
@@ -20,8 +20,6 @@ def NDArray(
     Supports:
     - exact shape matching
     - wildcard dimensions using 'None'
-
-    Symbolic dimensions are intentionally not implemented.
     """
     if dtype not in ALLOWED_DTYPES:
         raise ValueError(f"Unsupported dtype: {dtype}.")
@@ -39,7 +37,7 @@ def NDArray(
         - Otherwise dimensions must match exactly
 
         Example:
-            expected_shape = (None, 3)
+            shape = (None, 3)
             valid shapes: (10, 3), (1, 3)
             invalid shapes: (3, 1), (10, 2)
         """
@@ -48,7 +46,9 @@ def NDArray(
 
         if len(actual_shape) != len(shape):
             raise ValueError(
-                f"Rank mismatch: expected {len(shape)} dimensions, got {len(actual_shape)} shape {actual_shape}"
+                "Rank mismatch: "
+                f"expected {len(shape)} dimensions, "
+                f"got {len(actual_shape)} with shape {actual_shape}"
             )
 
         for i, (actual_dim, expected_dim) in enumerate(zip(actual_shape, shape)):
@@ -76,13 +76,15 @@ def NDArray(
         return real + 1j * imag
 
     class PydanticNDArray:
+        """Dynamically generated Pydantic-compatible ndarray type."""
+
         @classmethod
         def __get_pydantic_core_schema__(
             cls,
             source_type,
             handler: GetCoreSchemaHandler,
         ):
-            def validate(value: Any) -> np.ndarray:
+            def validate(value: Any, info: ValidationInfo) -> np.ndarray:
                 if np.issubdtype(dtype, np.complexfloating) and isinstance(value, dict):
                     value = deserialize_complex(value)
 
@@ -106,7 +108,7 @@ def NDArray(
 
                 return value.tolist()
 
-            return core_schema.no_info_plain_validator_function(
+            return core_schema.with_info_plain_validator_function(
                 validate,
                 serialization=core_schema.plain_serializer_function_ser_schema(
                     serialize
